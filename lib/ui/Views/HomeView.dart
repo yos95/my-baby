@@ -11,9 +11,9 @@ import 'package:logger/logger.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 var logger = Logger();
-
 DateTime date = DateTime.now();
-List<Widget> listText = [];
+var dateCollectionFirebase =
+    new DateFormat("dd-MM-yyyy").format(date).toString();
 
 class HomeView extends StatefulWidget {
   static const String id = 'home_screen';
@@ -28,9 +28,11 @@ class _HomeViewState extends State<HomeView> {
     initializeDateFormatting("fr_FR");
   }
 
+  List<Map<String, String>> eventLifeList = [];
+
   var ColorDynamiqueSwitch;
   List<EventLife> eventLifeOb;
-  List<DocumentSnapshot> dataUP;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,17 +64,25 @@ class _HomeViewState extends State<HomeView> {
                       child: StreamBuilder(
                           stream: Firestore.instance
                               .collection('users-data')
+                              .document('ArKH4nWM3pR9qtz70BtPf3fWFbV2')
                               .snapshots(),
-                          builder:
-                              (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                            if (snapshot.hasData) {
-                              eventLifeOb = snapshot.data.documents
-                                  .map((doc) => EventLife.fromMap(
-                                      doc.data["06-06-2019"], doc.documentID))
-                                  .toList();
-                              listText.clear();
+                          builder: (context,
+                              AsyncSnapshot<DocumentSnapshot> snapshot) {
+                            List<Widget> listText = [];
+                            var NewMap =
+                                snapshot.data.data[dateCollectionFirebase];
+                            logger.d(NewMap);
+                            if (!(NewMap == null)) {
+                              var timet = DateFormat.MMMMEEEEd("fr_FR")
+                                  .format(new DateTime.now())
+                                  .toString();
+                              eventLifeList.clear();
+                              NewMap.forEach((k, v) {
+                                eventLifeList.add({k: v});
+                              });
 
-                              for (var a in eventLifeOb[0].eventLifeList) {
+                              listText.clear();
+                              for (var a in eventLifeList.reversed) {
                                 setColor(a.values.toString());
 
                                 var newKey = a.keys
@@ -81,7 +91,6 @@ class _HomeViewState extends State<HomeView> {
                                     .replaceAll(')', '');
                                 var Key = newKey.split(':');
                                 var formatedKey = Key[0] + ':' + Key[1];
-
                                 listText.add(
                                   ReusableTextList(
                                     color: ColorDynamiqueSwitch,
@@ -93,8 +102,9 @@ class _HomeViewState extends State<HomeView> {
                                   ),
                                 );
                               }
-
-                              return ListView.builder(
+                              logger.d('listText lenght ' +
+                                  listText.length.toString());
+                              return new ListView.builder(
                                   itemCount: 1,
                                   itemBuilder: (buildContext, index) {
                                     return Container(
@@ -102,10 +112,11 @@ class _HomeViewState extends State<HomeView> {
                                       height:
                                           MediaQuery.of(context).size.height /
                                               1.7,
-                                      child: Swiper(
+                                      child: new Swiper(
                                         itemBuilder:
                                             (BuildContext context, int index) {
-                                          logger.d(listText.length);
+                                          logger.d('listText : ' +
+                                              listText.length.toString());
                                           return new ReusableCard(
                                               listText: listText);
                                         },
@@ -116,7 +127,24 @@ class _HomeViewState extends State<HomeView> {
                                     );
                                   });
                             } else {
-                              return Text('fetching');
+                              listText.add(Container(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 20.0, horizontal: 10.0),
+                                margin: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: Text(
+                                  'Commencez par saisir un event Life',
+                                  textScaleFactor: 1.2,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ));
+                              return ReusableCard(listText: listText);
                             }
                           }),
                     ),
@@ -148,8 +176,9 @@ class _HomeViewState extends State<HomeView> {
                     color: Colors.lightBlue,
                     text: 'Manger',
                     onPressed: () {
-                      logger.d('manger');
-                      updateFirebase(newValue: 'Manger');
+                      setState(() {
+                        updateFirebase(newValue: 'Manger');
+                      });
                     },
                   ),
                 ],
@@ -159,6 +188,16 @@ class _HomeViewState extends State<HomeView> {
         ],
       ),
     );
+  }
+
+  void updateFirebase({String newValue}) {
+    DateTime now = DateTime.now();
+    String newKey = DateFormat('HH:mm:ss').format(now);
+
+    Firestore.instance
+        .collection("users-data")
+        .document("ArKH4nWM3pR9qtz70BtPf3fWFbV2")
+        .updateData({"$dateCollectionFirebase.$newKey": newValue});
   }
 
   void setColor(String value) {
@@ -172,16 +211,9 @@ class _HomeViewState extends State<HomeView> {
       case '(Manger)':
         ColorDynamiqueSwitch = Colors.lightBlueAccent;
         break;
+      case '(test)':
+        ColorDynamiqueSwitch = Colors.red;
+        break;
     }
   }
-}
-
-void updateFirebase({String newValue}) {
-  DateTime now = DateTime.now();
-  String newKey = DateFormat('HH:mm:ss').format(now);
-
-  Firestore.instance
-      .collection("users-data")
-      .document("ArKH4nWM3pR9qtz70BtPf3fWFbV2")
-      .updateData({"06-06-2019.$newKey": newValue});
 }
